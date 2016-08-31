@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cs50.h"
+#include <windows.h>
+
+HANDLE wHnd;    // Handle to write to the console.
+HANDLE rHnd;    // Handle to read from the console.
 
 #define A1   coords[0][0]
 #define A2   coords[1][0]
@@ -67,6 +71,21 @@ int restart()
 
 int main(void)
 {
+	// Set up the handles for reading/writing:
+	wHnd = GetStdHandle(STD_OUTPUT_HANDLE);
+	rHnd = GetStdHandle(STD_INPUT_HANDLE);
+
+	SetConsoleTitle(_T("SimpleTicTacToe"));
+
+	// Set up the required window size:
+	SMALL_RECT windowSize = { 0, 0, 600, 100 };
+	SetConsoleWindowInfo(wHnd, 1, &windowSize);
+	// Change the console window size:
+	// Create a COORD to hold the buffer size:
+	COORD bufferSize = { 10, 10 };
+	SetConsoleScreenBufferSize(wHnd, bufferSize);
+
+
 GAMESTART:
 	srand(time(NULL)); //Sets randomizer to internal clock
 	tempx = tempy = playercount = playerturn = hasmoved = threatwarning = 0; //Resets all potentially assigned variables back to zero
@@ -80,7 +99,7 @@ GAMESTART:
 		}
 	}
 
-	printf("\n\n\n\n\n\nTIC TAC TOE\n\nBy Nathanael More\n\n1 for 1 Player\n2 for 2 Players\n\n\n\n\n\n\n");
+	printf("\n\n\n\n\n\nTIC TAC TOE\n\nBy Nathanael More\n\n1 for 1 Player\n2 for 2 Players\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 
 START:
 	//scanf_s("%d", playercount);
@@ -100,8 +119,15 @@ START:
 	{
 		if (playerturn != 3) //CPU is referred to as 3 in the playerturn variable
 		{
-			if (turn() == 0) //If 'end' command is given during players turn, end the game
-				return 0;
+			if (turn() == 0) //If a special command is input during player turn, also initializes player turn function
+			{
+				compare = strcmp(input, "end"); //checks for end game input
+				if (compare == 0)
+					return 0;
+				compare = strcmp(input, "r"); //checks for restart game input
+				if (compare == 0)
+					goto GAMESTART;
+			}
 		}
 		else
 			cputurn();
@@ -176,6 +202,10 @@ RETRY:
 	input[3] = '\0';
 
 	compare = strcmp(input, "end"); //checks for end game input
+	if (compare == 0)
+		return 0;
+
+	compare = strcmp(input, "r"); //checks for end game input
 	if (compare == 0)
 		return 0;
 
@@ -424,11 +454,16 @@ NEWOPP:
 						blankcount = 0;
 						break;
 					}
-					blankcount = 0;
-
-					for (x = 0; x <3; x++) //Checks for closest free space in opportunity row and fills it
+					
+					for (x = 0; x <3; x++) //Checks for furthest free space in opportunity row and fills it
 					{
-						if (coords[x][y] == '_')
+						if (coords[2][y] == '_')
+						{
+							coords[2][y] = 'O';
+							hasmoved = 1;
+							return 1;
+						}
+						else if (coords[x][y] == '_')
 						{
 							coords[x][y] = 'O';
 							hasmoved = 1;
@@ -437,12 +472,14 @@ NEWOPP:
 						else if (coords[x][y] == 'X') //Clarifies there is no X in the row
 						{
 							opplvl = 0;
+							blankcount = 0;
 							break;
 						}
 					}
 				}
 			}
 			opplvl = 0;
+			blankcount = 0;
 		}
 		break;
 
@@ -470,11 +507,16 @@ NEWOPP:
 						blankcount = 0;
 						break;
 					}
-					blankcount = 0;
 
 					for (y = 0; y <3; y++)
 					{
-						if (coords[x][y] == '_')
+						if (coords[x][2] == '_')
+						{
+							coords[x][2] = 'O';
+							hasmoved = 1;
+							return 1;
+						}
+						else if (coords[x][y] == '_')
 						{
 							coords[x][y] = 'O';
 							hasmoved = 1;
@@ -483,12 +525,14 @@ NEWOPP:
 						else if (coords[x][y] == 'X')
 						{
 							opplvl = 0;
+							blankcount = 0;
 							break;
 						}
 					}
 				}
 			}
 			opplvl = 0;
+			blankcount = 0;
 		}
 		break;
 
@@ -514,7 +558,6 @@ NEWOPP:
 					blankcount = 0;
 					break;
 				}
-				blankcount = 0;
 
 				for (x = 0, y = 0; x<3; x++, y++)
 				{
@@ -527,12 +570,14 @@ NEWOPP:
 					else if (coords[x][y] == 'X')
 					{
 						opplvl = 0;
+						blankcount = 0;
 						break;
 					}
 				}
 			}
 		}
 		opplvl = 0;
+		blankcount = 0;
 		break;
 
 	case 3: //Checks for forward slash diagonal opportunities
@@ -557,7 +602,6 @@ NEWOPP:
 					opplvl = 0;
 					break;
 				}
-				blankcount = 0;
 
 				for (y = 0, x = 0; y<3; y++, x++)
 				{
@@ -570,12 +614,14 @@ NEWOPP:
 					else if (coords[x][y] == 'X')
 					{
 						opplvl = 0;
+						blankcount = 0;
 						break;
 					}
 				}
 			}
 		}
 		opplvl = 0;
+		blankcount = 0;
 		break;
 	}
 	goto NEWOPP;
