@@ -402,6 +402,32 @@ int threatcheck() //Checks for immediate threats and defends spaces
 	}
 	threatlvl = 0;
 
+	//checks to see if player is attempting to trick the player by not picking a corner for two turns, and stops the player from successfully tricking the computer into thinking there is no threat
+	if (coords[0][1] == 'X' && coords[1][0] == 'X' && coords[0][0] == '_')
+	{
+		coords[0][0] = 'O';
+		hasmoved = 1;
+		return 1;
+	}
+	else if (coords[0][1] == 'X' && coords[1][2] == 'X' && coords[0][2] == '_')
+	{
+		coords[0][2] = 'O';
+		hasmoved = 1;
+		return 1;
+	}
+	else if (coords[2][1] == 'X' && coords[1][0] == 'X' && coords[2][0] == '_')
+	{
+		coords[2][0] = 'O';
+		hasmoved = 1;
+		return 1;
+	}
+	else if (coords[2][1] == 'X' && coords[1][2] == 'X' && coords[2][2] == '_')
+	{
+		coords[2][2] = 'O';
+		hasmoved = 1;
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -409,137 +435,141 @@ int threatcheck() //Checks for immediate threats and defends spaces
 
 int opportunitycheck() //Similar to the threatcheck function, this function sees if there are any pivitol moves to make. 
 {                      //The priority of this function depends on how immediate the threat of losing is. If there are more than one opportunity, the space is chosen at random.
-	int r, opplvl, blankcount;
-	int op[4];
-	op[0] = 5;
+	int opplvl, blankcount, secondcheck, diagcount, sidecount;
+
+	secondcheck = diagcount = sidecount = 0;
+
+	if (coords[1][1] == 'X') //if the center is held by the first player, there is no need to check for any diagonal wins
+	{
+		diagcount = 5;
+		goto NEWOPP;
+	}
+	//the rest of this block counts how many diagonals and sides are owned by the player. If there are more sides, then check for diagonal opportunities first and vice versa.
+	//loop checks top and bottom row
+	for (int y = 0; y < 3; y = y + 2)
+	{
+		if (coords[0][y] == 'X')
+			diagcount++;
+		if (coords[1][y] == 'X')
+			sidecount++;
+		if (coords[2][y] == 'X')
+			diagcount++;
+	}
+	//last two if's check the middle left and right sides
+	if (coords[0][1] == 'X')
+		sidecount++;
+	if (coords[2][1] == 'X')
+		sidecount++;
+
 NEWOPP:
+
 	blankcount = opplvl = 0;
 
 	if (hasmoved == 1)
 		return 0;
 
-	if (op[0] == 0 && op[1] == 1 && op[2] == 2 && op[3] == 3) //Checks to see if all random choices have been made already, and if so there are no special opportunities
-		return 0;
+	if (diagcount >= sidecount)
+		goto STRAIGHTLINE;
 
-	r = rand() % 4; //Pull a random number from 0-3
+DIAGLINE:
 
-	if (r == op[0] || r == op[1] || r == op[2] || r == op[3]) //If random number has already been pulled in this loop, pull another number
-		goto NEWOPP;
-
-	op[r] = r;
-
-	switch (r) //Switch statement for dealing with horizontal, vertical, and diagonal opportunities in a more randomized manner.
+	//Checks for backslash diagonal opportunities
+	for (int x = 0, y = 0; x<3; x++, y++)
 	{
-	case 0: //Checks for horizontal opportunities
-		for (int y = 0; y <3; y++)
+		if (coords[x][y] != 'X')
 		{
-			for (int x = 0; x <3; x++)
+			if (coords[x][y] == '_')
+				blankcount++;
+			opplvl++;
+		}
+		else
+		{
+			opplvl = 0;
+			break;
+		}
+		if (opplvl > 2)
+		{
+			if (blankcount > 1 && (threatwarning == 1 || secondcheck == 0))
 			{
-				if (coords[x][y] != 'X') //If there is no X in the row, raise the opportunity level and count all the blankspaces in the row
+				opplvl = 0;
+				blankcount = 0;
+				break;
+			}
+
+			for (x = 0, y = 0; x<3; x++, y++)
+			{
+				if (coords[x][y] == '_')
 				{
-					if (coords[x][y] == '_')
-						blankcount++;
-					opplvl++;
+					coords[x][y] = 'O';
+					hasmoved = 1;
+					return 1;
 				}
-				else
+				else if (coords[x][y] == 'X')
 				{
 					opplvl = 0;
+					blankcount = 0;
 					break;
 				}
-				if (opplvl > 2) //If an entire row is clear of X's
+			}
+		}
+	}
+	opplvl = 0;
+	blankcount = 0;
+
+	//Checks for forward slash diagonal opportunities
+	for (int y = 0, x = 2; y<3; y++, x--)
+	{
+		if (coords[x][y] != 'X')
+		{
+			if (coords[x][y] == '_')
+				blankcount++;
+			opplvl++;
+		}
+		else
+		{
+			opplvl = 0;
+			break;
+		}
+		if (opplvl > 2)
+		{
+			if (blankcount > 1 && (threatwarning == 1 || secondcheck == 0))
+			{
+				blankcount = 0;
+				opplvl = 0;
+				break;
+			}
+
+			for (y = 0, x = 2; y<3; y++, x--)
+			{
+				if (coords[x][y] == '_')
 				{
-					if (blankcount > 1 && threatwarning == 1) //Used when threatcheck calls this function, establishes priority to threatcheck (if in immediate danger of losing) unless the next move is a game winning move
-					{
-						opplvl = 0;
-						blankcount = 0;
-						break;
-					}
-					
-					for (x = 0; x <3; x++) //Checks for furthest free space in opportunity row and fills it
-					{
-						if (coords[2][y] == '_')
-						{
-							coords[2][y] = 'O';
-							hasmoved = 1;
-							return 1;
-						}
-						else if (coords[x][y] == '_')
-						{
-							coords[x][y] = 'O';
-							hasmoved = 1;
-							return 1;
-						}
-						else if (coords[x][y] == 'X') //Clarifies there is no X in the row
-						{
-							opplvl = 0;
-							blankcount = 0;
-							break;
-						}
-					}
+					coords[x][y] = 'O';
+					hasmoved = 1;
+					return 1;
+				}
+				else if (coords[x][y] == 'X')
+				{
+					opplvl = 0;
+					blankcount = 0;
+					break;
 				}
 			}
-			opplvl = 0;
-			blankcount = 0;
 		}
-		break;
+	}
+	opplvl = 0;
+	blankcount = 0;
 
-	case 1: //Checks for vertical opportunities
+	if (diagcount >= sidecount)
+		goto END;
+
+STRAIGHTLINE:
+
+	//Checks for horizontal opportunities
+	for (int y = 0; y <3; y++)
+	{
 		for (int x = 0; x <3; x++)
 		{
-			for (int y = 0; y <3; y++)
-			{
-				if (coords[x][y] != 'X')
-				{
-					if (coords[x][y] == '_')
-						blankcount++;
-					opplvl++;
-				}
-				else
-				{
-					opplvl = 0;
-					break;
-				}
-				if (opplvl > 2)
-				{
-					if (blankcount > 1 && threatwarning == 1)
-					{
-						opplvl = 0;
-						blankcount = 0;
-						break;
-					}
-
-					for (y = 0; y <3; y++)
-					{
-						if (coords[x][2] == '_')
-						{
-							coords[x][2] = 'O';
-							hasmoved = 1;
-							return 1;
-						}
-						else if (coords[x][y] == '_')
-						{
-							coords[x][y] = 'O';
-							hasmoved = 1;
-							return 1;
-						}
-						else if (coords[x][y] == 'X')
-						{
-							opplvl = 0;
-							blankcount = 0;
-							break;
-						}
-					}
-				}
-			}
-			opplvl = 0;
-			blankcount = 0;
-		}
-		break;
-
-	case 2: //Checks for backslash diagonal opportunities
-		for (int x = 0, y = 0; x<3; x++, y++)
-		{
-			if (coords[x][y] != 'X')
+			if (coords[x][y] != 'X') //If there is no X in the row, raise the opportunity level and count all the blankspaces in the row
 			{
 				if (coords[x][y] == '_')
 					blankcount++;
@@ -550,24 +580,30 @@ NEWOPP:
 				opplvl = 0;
 				break;
 			}
-			if (opplvl > 2)
+			if (opplvl > 2) //If an entire row is clear of X's
 			{
-				if (blankcount > 1 && threatwarning == 1)
+				if (blankcount > 1 && (threatwarning == 1 || secondcheck == 0)) //Used when threatcheck calls this function, establishes priority to threatcheck (if in immediate danger of losing) unless the next move is a game winning move
 				{
 					opplvl = 0;
 					blankcount = 0;
 					break;
 				}
 
-				for (x = 0, y = 0; x<3; x++, y++)
+				for (x = 0; x <3; x++) //Checks for furthest free space in opportunity row and fills it
 				{
-					if (coords[x][y] == '_')
+					if (coords[2][y] == '_')
+					{
+						coords[2][y] = 'O';
+						hasmoved = 1;
+						return 1;
+					}
+					else if (coords[x][y] == '_')
 					{
 						coords[x][y] = 'O';
 						hasmoved = 1;
 						return 1;
 					}
-					else if (coords[x][y] == 'X')
+					else if (coords[x][y] == 'X') //Clarifies there is no X in the row
 					{
 						opplvl = 0;
 						blankcount = 0;
@@ -578,55 +614,74 @@ NEWOPP:
 		}
 		opplvl = 0;
 		blankcount = 0;
-		break;
-
-	case 3: //Checks for forward slash diagonal opportunities
-		for (int y = 0, x = 0; y<3; y++, x++)
-		{
-			if (coords[x][y] != 'X')
-			{
-				if (coords[x][y] == '_')
-					blankcount++;
-				opplvl++;
-			}
-			else
-			{
-				opplvl = 0;
-				break;
-			}
-			if (opplvl > 2)
-			{
-				if (blankcount > 1 && threatwarning == 1)
-				{
-					blankcount = 0;
-					opplvl = 0;
-					break;
-				}
-
-				for (y = 0, x = 0; y<3; y++, x++)
-				{
-					if (coords[x][y] == '_')
-					{
-						coords[x][y] = 'O';
-						hasmoved = 1;
-						return 1;
-					}
-					else if (coords[x][y] == 'X')
-					{
-						opplvl = 0;
-						blankcount = 0;
-						break;
-					}
-				}
-			}
-		}
-		opplvl = 0;
-		blankcount = 0;
-		break;
 	}
-	goto NEWOPP;
+
+	//Checks for vertical opportunities
+	for (int x = 0; x <3; x++)
+	{
+		for (int y = 0; y <3; y++)
+		{
+			if (coords[x][y] != 'X')
+			{
+				if (coords[x][y] == '_')
+					blankcount++;
+				opplvl++;
+			}
+			else
+			{
+				opplvl = 0;
+				break;
+			}
+			if (opplvl > 2)
+			{
+				if (blankcount > 1 && (threatwarning == 1 || secondcheck == 0))
+				{
+					opplvl = 0;
+					blankcount = 0;
+					break;
+				}
+
+				for (y = 0; y <3; y++)
+				{
+					if (coords[x][2] == '_')
+					{
+						coords[x][2] = 'O';
+						hasmoved = 1;
+						return 1;
+					}
+					else if (coords[x][y] == '_')
+					{
+						coords[x][y] = 'O';
+						hasmoved = 1;
+						return 1;
+					}
+					else if (coords[x][y] == 'X')
+					{
+						opplvl = 0;
+						blankcount = 0;
+						break;
+					}
+				}
+			}
+		}
+		opplvl = 0;
+		blankcount = 0;
+	}
+
+	if (diagcount >= sidecount)
+		goto DIAGLINE;
+
+END:
+
+	if (secondcheck == 0)
+	{
+		secondcheck = 1;
+		goto NEWOPP;
+	}
+
 	return 0;
 }
+
 
 //AI MANAGEMENT
 void cputurn()
